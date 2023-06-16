@@ -23,6 +23,8 @@ public class HelloController {
     public String index() {
         usingRestTemplate();
 
+        new HttpsClient().testIt();
+        
         return "Hello World\n";
     }
 
