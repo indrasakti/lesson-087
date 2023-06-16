@@ -12,23 +12,24 @@ jobs:
       contents: 'read'
       id-token: 'write'
     env:
-      IMAGE_NAME: lesson-087
-      PROJECT_ID: organic-nation-386906
-      SERVICE: lesson-087 # TODO: update Cloud Run service name
-      REGION: us-central1 # TODO: update Cloud Run service region
+      IMAGE_NAME: spring-test-image
+      PROJECT_ID: sirup-dev
+      SERVICE: spring-test # TODO: update Cloud Run service name
+      REGION: asia-southeast2 # TODO: update Cloud Run service region
+  
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
-
+  
     - id: auth
       name: Authenticate to Google Cloud
       uses: 'google-github-actions/auth@v1'
       with:
         token_format: 'access_token' # <--
-        workload_identity_provider: 'projects/1040812485392/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
-        service_account: 'github-cloud-build@${{ENV.PROJECT_ID}}.iam.gserviceaccount.com'
-        access_token_lifetime: '300s' # optional, default: '3600s' (1 hour)
+        workload_identity_provider: 'projects/152087858797/locations/global/workloadIdentityPools/sirup-dev-build/providers/sirup-dev-provider'
+        service_account: 'sirup-dev-build@${{ENV.PROJECT_ID}}.iam.gserviceaccount.com'
+        access_token_lifetime: '3600s' # optional, default: '3600s' (1 hour)
 
 
     - name : Setup Gcloud
@@ -42,36 +43,30 @@ jobs:
     - name: Configure Docker Client
       run: |-
         gcloud auth configure-docker --quiet
-        gcloud auth configure-docker asis-docker.pkg.dev --quiet
+        gcloud auth configure-docker asia-southeast2-docker.pkg.dev --quiet
 
-    - name: Push Docker Image to Container Registry (GCR)
+    - name: Push Docker Image to Container Registry (GCR)    
+      env:
+        GIT_TAG: 'latest'
       run: |-
-        docker tag $IMAGE_NAME:latest gcr.io/$PROJECT_ID/$IMAGE_NAME:latest
-        docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:latest
+        docker tag $IMAGE_NAME:$GIT_TAG gcr.io/$PROJECT_ID/$IMAGE_NAME:$GIT_TAG
+        docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:$GIT_TAG
 
-    - run: |-
-        echo '${{ steps.auth.outputs.access_token }}' | docker login -u oauth2accesstoken --password-stdin https://asia-docker.pkg.dev
+    - name: Docker Auth
+      run: |-
+        echo '${{ steps.auth.outputs.access_token }}' | docker login -u oauth2accesstoken --password-stdin https://asia-southeast2-docker.pkg.dev
 
     - name: Push Docker Image to Artifact Registry
       env:
-        GIT_TAG: ${{ steps.increment-git-tag.outputs.git-tag }}
+        GIT_TAG: 'latest'
       run: |-
-        docker tag $IMAGE_NAME:latest asia-docker.pkg.dev/organic-nation-386906/asia.gcr.io/$IMAGE_NAME:latest
-        docker push asia-docker.pkg.dev/organic-nation-386906/asia.gcr.io/$IMAGE_NAME:latest
-        
+        docker tag $IMAGE_NAME:$GIT_TAG asia-southeast2-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME/$IMAGE_NAME:$GIT_TAG
+        docker push $REGION-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME/$IMAGE_NAME:$GIT_TAG
+       
     - name: Deploy to Cloud Run
-      id: deploy
       uses: google-github-actions/deploy-cloudrun@v0
       with:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
           # NOTE: If using a pre-built image, update the image name here
-          image: asia-docker.pkg.dev/organic-nation-386906/asia.gcr.io/${{ env.SERVICE }}:latest
-          # NOTE: You can also set env variables here:
-          #  env_vars: |
-          #  NODE_ENV=production
-          #  TOKEN_EXPIRE=6400
-
-      # If required, use the Cloud Run url output in later steps
-    - name: Show Output
-      run: echo ${{ steps.deploy.outputs.url }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}/${{ env.IMAGE_NAME }}:latest
