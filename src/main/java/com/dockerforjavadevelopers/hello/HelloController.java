@@ -21,20 +21,7 @@ public class HelloController {
     
     @RequestMapping("/")
     public String index() {
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> response = restTemplate.exchange(
-                "https://sipd.kemendagri.go.id/api/vSIRUP?_apitoken=ba0b941de1358e57aeaf2e0dd86ecd1b&tahun=2023&kodewil=64.02&kodeskpd=1.06.0.00.0.00.01.0000", HttpMethod.GET, null,
-                new ParameterizedTypeReference<String>() {
-                });
-
-        if (response.getStatusCode().is2xxSuccessful()) {
-            String jsonResponse = response.getBody();
-            // Proses response JSON sesuai kebutuhan Anda
-            System.out.println(jsonResponse);
-        } else {
-            System.out.println("Failed to fetch data from API. Status code: " + response.getStatusCode());
-        }
-
+        usingRestTemplate();
 
         return "Hello World\n";
     }
